@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Actuarial Math Bootcamp</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a1a; color: #e8e8f0; font-family: Georgia, serif; }
+    ::-webkit-scrollbar { width: 6px; } 
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #1e2d45; border-radius: 3px; }
+    input::placeholder { color: #3a4a60; }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const CURRICULUM = [
+      { id: 1, week: "Week 1", title: "Number Systems & Algebra Foundations", icon: "∑", color: "#00C9A7",
+        topics: ["Integers, rationals, irrationals, real numbers", "Laws of exponents and surds", "Factorisation and algebraic manipulation", "Solving linear and quadratic equations"], difficulty: "Foundation" },
+      { id: 2, week: "Week 2", title: "Functions & Graphs", icon: "f(x)", color: "#845EC2",
+        topics: ["Definition of a function, domain & range", "Linear, quadratic, exponential, logarithmic functions", "Transformations and sketching", "Inverse functions"], difficulty: "Foundation" },
+      { id: 3, week: "Week 3", title: "Sequences, Series & Financial Maths", icon: "∞", color: "#FF6B6B",
+        topics: ["Arithmetic and geometric sequences", "Sum formulas for series", "Simple and compound interest", "Annuities and loan repayments (key actuarial concept)"], difficulty: "Intermediate" },
+      { id: 4, week: "Week 4", title: "Trigonometry", icon: "θ", color: "#FFC75F",
+        topics: ["Trig ratios and the unit circle", "Trig identities and equations", "Sine & cosine rules", "2D and 3D applications"], difficulty: "Intermediate" },
+      { id: 5, week: "Week 5", title: "Euclidean & Analytical Geometry", icon: "△", color: "#4ECDC4",
+        topics: ["Circle theorems and proofs", "Distance, midpoint, gradient formulas", "Equations of lines and circles", "Coordinate geometry problems"], difficulty: "Intermediate" },
+      { id: 6, week: "Week 6", title: "Calculus – Differentiation", icon: "d/dx", color: "#F9A03F",
+        topics: ["Limits and the concept of a derivative", "Rules: power, product, chain rule", "Applications: tangents, rates of change", "Optimisation problems"], difficulty: "Advanced" },
+      { id: 7, week: "Week 7", title: "Calculus – Integration & Statistics", icon: "∫", color: "#C34A36",
+        topics: ["Indefinite and definite integrals", "Area under a curve", "Probability basics, permutations & combinations", "Normal distribution (actuarial foundation)"], difficulty: "Advanced" },
+      { id: 8, week: "Week 8", title: "Exam Simulation & Actuarial Readiness", icon: "★", color: "#2C73D2",
+        topics: ["Full timed mock exam (3 hours)", "ASSA CT1 Financial Mathematics preview", "Review of all weak areas", "Exam strategy and time management"], difficulty: "Exam Prep" },
+    ];
+
+    const DIFFICULTY_COLORS = { Foundation: "#00C9A7", Intermediate: "#FFC75F", Advanced: "#FF6B6B", "Exam Prep": "#2C73D2" };
+
+    const SAMPLE_QUESTIONS = {
+      1: [
+        { q: "Simplify: 2³ × 2⁵", a: "2⁸ = 256", hint: "When multiplying same base, add the exponents." },
+        { q: "Factorise: x² - 5x + 6", a: "(x - 2)(x - 3)", hint: "Find two numbers that multiply to 6 and add to -5." },
+        { q: "Solve for x: 3x + 7 = 22", a: "x = 5", hint: "Subtract 7 from both sides, then divide by 3." },
+      ],
+      3: [
+        { q: "The 1st term of an arithmetic sequence is 3, common difference is 5. What is the 10th term?", a: "48", hint: "Use Tₙ = a + (n-1)d" },
+        { q: "R10,000 is invested at 8% compound interest for 3 years. What is the final amount?", a: "R12,597.12", hint: "Use A = P(1 + r)ⁿ" },
+        { q: "Find the sum of the first 6 terms: 2, 6, 18, 54...", a: "728", hint: "Geometric series: Sₙ = a(rⁿ - 1)/(r - 1)" },
+      ],
+      6: [
+        { q: "Differentiate: f(x) = 3x⁴ - 2x² + 7", a: "f'(x) = 12x³ - 4x", hint: "Power rule: bring down the exponent, reduce it by 1." },
+        { q: "Find the gradient of y = x² at the point x = 3", a: "6", hint: "Differentiate first, then substitute x = 3." },
+        { q: "A rectangle has perimeter 40cm. Find dimensions for maximum area.", a: "10cm × 10cm (square)", hint: "Express area as function of one variable, differentiate and set to 0." },
+      ],
+    };
+
+    function App() {
+      const [activeTab, setActiveTab] = useState("curriculum");
+      const [selectedWeek, setSelectedWeek] = useState(null);
+      const [completedWeeks, setCompletedWeeks] = useState([]);
+      const [chatMessages, setChatMessages] = useState([
+        { role: "assistant", text: "👋 Hi! I'm your AI maths tutor. Ask me anything — from basic algebra to financial mathematics. I'll explain it step by step. What are you struggling with?" }
+      ]);
+      const [userInput, setUserInput] = useState("");
+      const [isLoading, setIsLoading] = useState(false);
+      const [practiceMode, setPracticeMode] = useState(null);
+      const [currentQ, setCurrentQ] = useState(0);
+      const [showAnswer, setShowAnswer] = useState(false);
+      const [showHint, setShowHint] = useState(false);
+      const chatEndRef = useRef(null);
+
+      useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
+
+      const sendMessage = async () => {
+        if (!userInput.trim() || isLoading) return;
+        const userMsg = userInput.trim();
+        setUserInput("");
+        setChatMessages(prev => [...prev, { role: "user", text: userMsg }]);
+        setIsLoading(true);
+        try {
+          const res = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-20250514",
+              max_tokens: 1000,
+              system: `You are an expert South African mathematics tutor helping a student prepare for actuarial science (ASSA) exams. The student has matric-level maths (46%) and wants to qualify for ASSA actuarial exams. Explain concepts clearly with step-by-step workings using South African curriculum context. Focus on algebra, functions, sequences/series, financial maths, trigonometry, calculus, statistics, probability. Always show working. Be encouraging. Use plain notation (x^2, sqrt(x)). Keep responses concise — max 3-4 paragraphs. Connect concepts to actuarial work when relevant.`,
+              messages: [
+                ...chatMessages.slice(-6).map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.text })),
+                { role: "user", content: userMsg }
+              ]
+            })
+          });
+          const data = await res.json();
+          const reply = data.content?.find(b => b.type === "text")?.text || "Sorry, I couldn't process that. Try again!";
+          setChatMessages(prev => [...prev, { role: "assistant", text: reply }]);
+        } catch {
+          setChatMessages(prev => [...prev, { role: "assistant", text: "Connection error. Please try again." }]);
+        }
+        setIsLoading(false);
+      };
+
+      const startPractice = (weekId) => {
+        const qs = SAMPLE_QUESTIONS[weekId];
+        if (!qs) {
+          setChatMessages(prev => [...prev, { role: "assistant", text: `Great choice! Ask me any question on Week ${weekId} topics and I'll walk you through them step by step. 💪` }]);
+          setActiveTab("tutor");
+          return;
+        }
+        setPracticeMode({ weekId, questions: qs });
+        setCurrentQ(0); setShowAnswer(false); setShowHint(false);
+        setActiveTab("practice");
+      };
+
+      const markComplete = (weekId) => {
+        if (!completedWeeks.includes(weekId)) setCompletedWeeks(prev => [...prev, weekId]);
+      };
+
+      const progressPct = Math.round((completedWeeks.length / CURRICULUM.length) * 100);
+
+      const btn = (label, onClick, style = {}) => (
+        <button onClick={onClick} style={{ cursor: "pointer", fontFamily: "inherit", border: "none", ...style }}>{label}</button>
+      );
+
+      return (
+        <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0a0a1a 0%, #0d1b2a 50%, #0a0a1a 100%)" }}>
+          {/* Top accent bar */}
+          <div style={{ height: 3, background: "linear-gradient(90deg, #00C9A7, #2C73D2, #845EC2)" }} />
+
+          <div style={{ padding: "24px 16px 0", maxWidth: 860, margin: "0 auto" }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 4 }}>
+              <div style={{ width: 46, height: 46, borderRadius: 12, background: "linear-gradient(135deg, #00C9A7, #2C73D2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#fff", fontWeight: "bold", flexShrink: 0 }}>∑</div>
+              <div style={{ flex: 1 }}>
+                <h1 style={{ fontSize: 22, fontWeight: "bold", color: "#fff", letterSpacing: "-0.5px" }}>Actuarial Math Bootcamp</h1>
+                <p style={{ fontSize: 12, color: "#8899bb", marginTop: 2 }}>8-Week Intensive · Matric → ASSA Readiness · AI Tutoring</p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 24, fontWeight: "bold", color: "#00C9A7" }}>{progressPct}%</div>
+                <div style={{ fontSize: 11, color: "#8899bb" }}>Complete</div>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div style={{ height: 5, background: "#1a2035", borderRadius: 3, margin: "14px 0", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${progressPct}%`, background: "linear-gradient(90deg, #00C9A7, #2C73D2)", borderRadius: 3, transition: "width 0.5s ease" }} />
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
+              {[{ id: "curriculum", label: "📚 Curriculum" }, { id: "tutor", label: "🤖 AI Tutor" }, { id: "practice", label: "✏️ Practice" }].map(tab =>
+                btn(tab.label, () => setActiveTab(tab.id), {
+                  padding: "8px 16px", borderRadius: 8, fontSize: 13,
+                  fontWeight: activeTab === tab.id ? "bold" : "normal",
+                  background: activeTab === tab.id ? "linear-gradient(135deg, #00C9A7, #2C73D2)" : "#131c2e",
+                  color: activeTab === tab.id ? "#fff" : "#8899bb"
+                })
+              )}
+            </div>
+
+            {/* CURRICULUM */}
+            {activeTab === "curriculum" && (
+              <div>
+                <div style={{ display: "grid", gridTemplateColumns: window.innerWidth > 600 ? "1fr 1fr" : "1fr", gap: 12 }}>
+                  {CURRICULUM.map(week => {
+                    const done = completedWeeks.includes(week.id);
+                    return (
+                      <div key={week.id} onClick={() => setSelectedWeek(selectedWeek === week.id ? null : week.id)}
+                        style={{ background: "#111827", border: `1px solid ${done ? week.color + "55" : "#1e2d45"}`, borderLeft: `3px solid ${week.color}`, borderRadius: 10, padding: 14, cursor: "pointer" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 10, color: week.color, fontWeight: "bold", letterSpacing: 1, marginBottom: 2 }}>{week.week.toUpperCase()}</div>
+                            <div style={{ fontSize: 13, fontWeight: "bold", color: "#e8e8f0", lineHeight: 1.3 }}>{week.title}</div>
+                          </div>
+                          <div style={{ width: 34, height: 34, borderRadius: 8, background: week.color + "22", display: "flex", alignItems: "center", justifyContent: "center", color: week.color, fontSize: 16, marginLeft: 8, flexShrink: 0 }}>{done ? "✓" : week.icon}</div>
+                        </div>
+                        <div style={{ display: "inline-block", fontSize: 10, padding: "2px 8px", borderRadius: 20, background: DIFFICULTY_COLORS[week.difficulty] + "22", color: DIFFICULTY_COLORS[week.difficulty], marginTop: 8 }}>{week.difficulty}</div>
+                        {selectedWeek === week.id && (
+                          <div style={{ marginTop: 10 }} className="fade-in">
+                            {week.topics.map((t, i) => <div key={i} style={{ fontSize: 12, color: "#8899bb", marginBottom: 4 }}><span style={{ color: week.color }}>› </span>{t}</div>)}
+                            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                              {btn("Practice", (e) => { e.stopPropagation(); startPractice(week.id); }, { padding: "6px 14px", background: week.color, borderRadius: 6, color: "#000", fontSize: 12, fontWeight: "bold" })}
+                              {btn(done ? "✓ Done" : "Mark Done", (e) => { e.stopPropagation(); markComplete(week.id); }, { padding: "6px 14px", background: "#1e2d45", border: `1px solid ${done ? week.color : "#2e3d55"}`, borderRadius: 6, color: done ? week.color : "#8899bb", fontSize: 12 })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ marginTop: 16, padding: 14, background: "#0d1b2a", border: "1px solid #1e3a5f", borderLeft: "3px solid #2C73D2", borderRadius: 10, fontSize: 12, color: "#8899bb", lineHeight: 1.8 }}>
+                  <div style={{ color: "#2C73D2", fontWeight: "bold", marginBottom: 6 }}>🎯 Your Actuarial Roadmap</div>
+                  <strong style={{ color: "#e8e8f0" }}>Daily:</strong> 1–2 hours · <strong style={{ color: "#e8e8f0" }}>Key weeks:</strong> Week 3 (financial maths) & Week 7 (probability) are most actuarially relevant · <strong style={{ color: "#e8e8f0" }}>After bootcamp:</strong> Attempt ASSA CM1 Financial Mathematics exam
+                </div>
+              </div>
+            )}
+
+            {/* TUTOR */}
+            {activeTab === "tutor" && (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <div style={{ height: "55vh", overflowY: "auto", paddingBottom: 12 }}>
+                  {chatMessages.map((msg, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
+                      {msg.role === "assistant" && (
+                        <div style={{ width: 26, height: 26, borderRadius: "50%", background: "linear-gradient(135deg, #00C9A7, #2C73D2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", marginRight: 8, marginTop: 2, flexShrink: 0 }}>∑</div>
+                      )}
+                      <div style={{ maxWidth: "78%", padding: "10px 14px", borderRadius: 12, background: msg.role === "user" ? "linear-gradient(135deg, #2C73D2, #845EC2)" : "#111827", border: msg.role === "user" ? "none" : "1px solid #1e2d45", fontSize: 13, lineHeight: 1.65, color: "#e8e8f0", borderBottomRightRadius: msg.role === "user" ? 2 : 12, borderBottomLeftRadius: msg.role === "assistant" ? 2 : 12, whiteSpace: "pre-wrap" }}>{msg.text}</div>
+                    </div>
+                  ))}
+                  {isLoading && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, paddingLeft: 34 }}>
+                      {[0,1,2].map(i => <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: "#00C9A7", animation: "pulse 1.2s infinite", animationDelay: `${i*0.2}s` }} />)}
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "8px 0" }}>
+                  {["Explain compound interest step by step", "How do I factorise a quadratic?", "What is a derivative?", "Normal distribution basics"].map(p =>
+                    btn(p, () => setUserInput(p), { padding: "4px 10px", background: "#111827", border: "1px solid #1e2d45", borderRadius: 20, color: "#8899bb", fontSize: 11 })
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input value={userInput} onChange={e => setUserInput(e.target.value)} onKeyDown={e => e.key === "Enter" && sendMessage()}
+                    placeholder="Ask me any maths question..." style={{ flex: 1, padding: "10px 14px", background: "#111827", border: "1px solid #1e2d45", borderRadius: 10, color: "#e8e8f0", fontSize: 13, fontFamily: "inherit", outline: "none" }} />
+                  {btn("Send →", sendMessage, { padding: "10px 18px", background: isLoading ? "#1e2d45" : "linear-gradient(135deg, #00C9A7, #2C73D2)", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: "bold", opacity: isLoading ? 0.6 : 1 })}
+                </div>
+              </div>
+            )}
+
+            {/* PRACTICE */}
+            {activeTab === "practice" && (
+              <div>
+                {!practiceMode ? (
+                  <div style={{ textAlign: "center", padding: "40px 0" }}>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>✏️</div>
+                    <div style={{ fontSize: 15, color: "#8899bb", marginBottom: 20 }}>Select a week from Curriculum and click <strong style={{ color: "#e8e8f0" }}>Practice</strong> to begin.</div>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+                      {[1, 3, 6].map(id => { const w = CURRICULUM.find(c => c.id === id); return btn(`Week ${id}: ${w.title.split("–")[0].trim()}`, () => startPractice(id), { padding: "10px 16px", background: "#111827", border: `1px solid ${w.color}44`, borderRadius: 8, color: w.color, fontSize: 13 }); })}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                      <div style={{ fontSize: 13, color: "#8899bb" }}>Question {currentQ + 1} of {practiceMode.questions.length}</div>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {practiceMode.questions.map((_, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: i < currentQ ? "#00C9A7" : i === currentQ ? "#2C73D2" : "#1e2d45" }} />)}
+                      </div>
+                    </div>
+                    <div style={{ background: "#111827", border: "1px solid #1e2d45", borderLeft: "3px solid #2C73D2", borderRadius: 12, padding: 20, marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, color: "#2C73D2", letterSpacing: 1, marginBottom: 8 }}>QUESTION</div>
+                      <div style={{ fontSize: 16, color: "#e8e8f0", lineHeight: 1.6 }}>{practiceMode.questions[currentQ].q}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                      {btn(`💡 ${showHint ? "Hide" : "Show"} Hint`, () => setShowHint(!showHint), { padding: "7px 14px", background: "#111827", border: "1px solid #FFC75F44", borderRadius: 8, color: "#FFC75F", fontSize: 12 })}
+                      {btn(`✓ ${showAnswer ? "Hide" : "Show"} Answer`, () => setShowAnswer(!showAnswer), { padding: "7px 14px", background: showAnswer ? "linear-gradient(135deg,#00C9A7,#2C73D2)" : "#111827", border: "1px solid #00C9A744", borderRadius: 8, color: showAnswer ? "#fff" : "#00C9A7", fontSize: 12 })}
+                    </div>
+                    {showHint && <div style={{ background: "#1a1500", border: "1px solid #FFC75F33", borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 13, color: "#FFC75F" }}>💡 {practiceMode.questions[currentQ].hint}</div>}
+                    {showAnswer && <div style={{ background: "#001a14", border: "1px solid #00C9A733", borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 14, color: "#00C9A7", fontWeight: "bold" }}>✓ {practiceMode.questions[currentQ].a}</div>}
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      {currentQ > 0 && btn("← Previous", () => { setCurrentQ(q => q-1); setShowAnswer(false); setShowHint(false); }, { padding: "8px 14px", background: "#111827", border: "1px solid #1e2d45", borderRadius: 8, color: "#8899bb", fontSize: 12 })}
+                      {currentQ < practiceMode.questions.length - 1
+                        ? btn("Next →", () => { setCurrentQ(q => q+1); setShowAnswer(false); setShowHint(false); }, { padding: "8px 14px", background: "linear-gradient(135deg,#2C73D2,#845EC2)", borderRadius: 8, color: "#fff", fontSize: 12 })
+                        : btn("🎉 Complete Week!", () => { markComplete(practiceMode.weekId); setPracticeMode(null); setActiveTab("curriculum"); }, { padding: "8px 14px", background: "linear-gradient(135deg,#00C9A7,#2C73D2)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: "bold" })
+                      }
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ height: 30 }} />
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
